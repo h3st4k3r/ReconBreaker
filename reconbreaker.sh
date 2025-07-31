@@ -186,7 +186,8 @@ while true; do
     echo "2. Port Scanning"
     echo "3. Service Enumeration"
     echo "4. Automated Attacks"
-    echo "5. Run ALL phases"
+    echo "5. User fuzzing"
+    echo "6. Run ALL phases"
     echo "0. Exit"
     read -p "Choice: " OPTION
 
