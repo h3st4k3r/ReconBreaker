@@ -62,6 +62,10 @@ port_scanning() {
     fi
 
     echo -e "${GREEN}[✔] Port scanning completed. Output saved in: $SCAN_DIR${NC}"
+
+    echo -e "${YELLOW}[*] Running CVE matching with vulners...${NC}"
+    nmap -sV --script vulners -p$OPEN_PORTS $TARGET -oN "$TARGET/4_attacks/nmap_cve_match.txt"
+
 }
 
 # ------------ FASE 3: Service Enumeration ------------
