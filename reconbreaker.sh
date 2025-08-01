@@ -148,7 +148,7 @@ user_fuzzing() {
     FUZZ_DIR="$TARGET/5_creds/fuzz"
     mkdir -p "$FUZZ_DIR"
 
-    USERLIST="/usr/share/wordlists/nmap.lst"  # Puedes usar users.txt o preparar uno más agresivo
+    USERLIST="/usr/share/wordlists/nmap.lst"
 
     # SSH
     if grep -q "ssh" "$TARGET/2_scan/nmap_services.txt"; then
