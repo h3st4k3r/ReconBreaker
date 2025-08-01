@@ -177,6 +177,72 @@ user_fuzzing() {
     echo -e "${GREEN}[✔] Fuzzing completed. Results saved in $FUZZ_DIR${NC}"
 }
 
+# ------------ SMART AUTO MODE ------------
+smart_auto_mode() {
+    echo -e "${YELLOW}[*] Starting SMART AUTO MODE based on detected services${NC}"
+
+    passive_recon
+    port_scanning
+
+    SERVICE_FILE="$TARGET/2_scan/nmap_services.txt"
+    ENUM_DIR="$TARGET/3_enum"
+    ATTACK_DIR="$TARGET/4_attacks"
+    FUZZ_DIR="$TARGET/5_creds/fuzz"
+    mkdir -p "$ENUM_DIR" "$ATTACK_DIR" "$FUZZ_DIR"
+
+    if [ ! -f "$SERVICE_FILE" ]; then
+        echo -e "${RED}[!] No service file found. Skipping conditional logic.${NC}"
+        return
+    fi
+
+    echo -e "${BLUE}[+] Parsing detected services...${NC}"
+
+    # --- FTP ---
+    if grep -q "ftp" "$SERVICE_FILE"; then
+        echo -e "${BLUE}[+] FTP detected.${NC}"
+        echo -e "open $TARGET\nuser anonymous\npass ftp@\nls\nquit" | ftp -n > "$ENUM_DIR/ftp/ftp_anonymous_test.txt"
+        hydra -L /usr/share/wordlists/nmap.lst -p ftp ftp://$TARGET -o "$FUZZ_DIR/ftp_user_fuzz.txt"
+    fi
+
+    # --- SMB ---
+    if grep -E "microsoft-ds|netbios-ssn|smb" "$SERVICE_FILE" | grep -q "open"; then
+        echo -e "${BLUE}[+] SMB detected.${NC}"
+        enum4linux-ng -A $TARGET > "$ENUM_DIR/smb/enum4linux.txt"
+    fi
+
+    # --- HTTP / HTTPS ---
+    if grep -E "http|https" "$SERVICE_FILE" | grep -q "open"; then
+        echo -e "${BLUE}[+] HTTP(S) detected.${NC}"
+        mkdir -p "$ENUM_DIR/web"
+        gobuster dir -u http://$TARGET -w /usr/share/wordlists/dirb/common.txt -t 20 -o "$ENUM_DIR/web/gobuster_http.txt"
+        whatweb -v http://$TARGET > "$ENUM_DIR/web/whatweb.txt"
+        curl -I http://$TARGET > "$ENUM_DIR/web/headers.txt"
+        nikto -h http://$TARGET -output "$ATTACK_DIR/nikto_web.txt"
+    fi
+
+    # --- SSH ---
+    if grep -q "ssh" "$SERVICE_FILE"; then
+        echo -e "${BLUE}[+] SSH detected. Running user fuzz...${NC}"
+        hydra -L /usr/share/wordlists/nmap.lst -p test123 ssh://$TARGET -o "$FUZZ_DIR/ssh_user_fuzz.txt"
+    fi
+
+    # --- POP3 / IMAP ---
+    for proto in pop3 imap; do
+        if grep -q "$proto" "$SERVICE_FILE"; then
+            echo -e "${BLUE}[+] $proto detected. Running user fuzz...${NC}"
+            hydra -L /usr/share/wordlists/nmap.lst -p $proto ${proto}://$TARGET -o "$FUZZ_DIR/${proto}_user_fuzz.txt"
+        fi
+    done
+
+    # --- CVE Matching ---
+    echo -e "${YELLOW}[*] Running CVE matching with vulners...${NC}"
+    OPEN_PORTS=$(grep -oP '^\d+/tcp\s+open' "$TARGET/2_scan/nmap_full.txt" | cut -d'/' -f1 | paste -sd, -)
+    nmap -sV --script vulners -p$OPEN_PORTS $TARGET -oN "$ATTACK_DIR/nmap_cve_match.txt"
+    
+    echo -e "${GREEN}[✔] SMART AUTO MODE completed for $TARGET${NC}"
+}
+
+
 
 # ------------ MAIN MENU LOOP ------------
 while true; do
@@ -188,6 +254,9 @@ while true; do
     echo "4. Automated Attacks"
     echo "5. User fuzzing"
     echo "6. Run ALL phases"
+    echo "----------------------------------"
+    echo "7. Smart Auto Mode (recommended)"
+    echo "----------------------------------"
     echo "0. Exit"
     read -p "Choice: " OPTION
 
@@ -204,6 +273,7 @@ while true; do
             service_enum
             auto_attacks
             ;;
+        7) smart_auto_mode ;;
         0)
             echo -e "${RED}Exiting ReconBreaker...${NC}"
             exit 0
