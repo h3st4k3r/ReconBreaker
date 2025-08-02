@@ -384,7 +384,7 @@ while true; do
             auto_attacks
             ;;
         7) smart_auto_mode ;;
-        8) 8) exploit_helper ;;
+        8) exploit_helper ;;
         0)
             echo -e "${RED}Exiting ReconBreaker...${NC}"
             exit 0
