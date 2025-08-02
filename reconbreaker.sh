@@ -361,7 +361,7 @@ while true; do
     echo "3. Service Enumeration"
     echo "4. Automated Attacks"
     echo "5. User fuzzing"
-    echo "6. Run ALL phases"
+    echo "6. Run ALL previous phases"
     echo "----------------------------------"
     echo "7. Smart Auto Mode (recommended)"
     echo "----------------------------------"
@@ -377,11 +377,12 @@ while true; do
         4) auto_attacks ;;
         5) user_fuzzing ;;
         6)
-            user_fuzzing
             passive_recon
             port_scanning
             service_enum
             auto_attacks
+            user_fuzzing
+            exploit_helper
             ;;
         7) smart_auto_mode ;;
         8) exploit_helper ;;
