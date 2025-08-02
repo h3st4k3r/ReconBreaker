@@ -33,7 +33,7 @@ You’ll be prompted to enter a target (IP or domain), then shown a menu:
 3. Service Enumeration
 4. Offensive Checks
 5. User Fuzzing
-6. Run ALL Phases
+6. Run ALL previous phases
 --------------------------
 7. Smart Auto Mode (recommended)
 --------------------------
