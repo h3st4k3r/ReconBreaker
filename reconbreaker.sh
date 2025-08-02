@@ -120,6 +120,9 @@ auto_attacks() {
 
     mkdir -p "$ATTACK_DIR"
 
+    # 4.1 Nuclei
+    nuclei_scan
+
     # Nikto web scan
     if grep -E "http|https" "$SERVICE_FILE" | grep -q "open"; then
         echo -e "${BLUE}[+] Web service detected. Running nikto...${NC}"
@@ -141,6 +144,28 @@ auto_attacks() {
 
     echo -e "${GREEN}[✔] Offensive checks completed. Output saved in: $ATTACK_DIR${NC}"
 }
+
+# ------------ FASE 4.1: Nuclei Scan ------------
+nuclei_scan() {
+    SERVICE_FILE="$TARGET/2_scan/nmap_services.txt"
+    ATTACK_DIR="$TARGET/4_attacks"
+    mkdir -p "$ATTACK_DIR"
+
+    if ! command -v nuclei &> /dev/null; then
+        echo -e "${RED}[!] Nuclei is not installed. Skipping.${NC}"
+        return
+    fi
+
+    if grep -E "http|https" "$SERVICE_FILE" | grep -q "open"; then
+        echo -e "${YELLOW}[*] Running Nuclei scan (high/critical CVEs)...${NC}"
+        URL="http://$TARGET"
+        nuclei -u "$URL" -severity high,critical -t cves/ -o "$ATTACK_DIR/nuclei_results.txt"
+        echo -e "${GREEN}[✔] Nuclei results saved in: $ATTACK_DIR/nuclei_results.txt${NC}"
+    else
+        echo -e "${BLUE}[-] No HTTP service detected. Skipping Nuclei.${NC}"
+    fi
+}
+
 
 # ------------ FASE 5: Fuzzing Users with Hydra ------------
 user_fuzzing() {
@@ -214,6 +239,7 @@ smart_auto_mode() {
     if grep -E "http|https" "$SERVICE_FILE" | grep -q "open"; then
         echo -e "${BLUE}[+] HTTP(S) detected.${NC}"
         mkdir -p "$ENUM_DIR/web"
+        nuclei_scan
         gobuster dir -u http://$TARGET -w /usr/share/wordlists/dirb/common.txt -t 20 -o "$ENUM_DIR/web/gobuster_http.txt"
         whatweb -v http://$TARGET > "$ENUM_DIR/web/whatweb.txt"
         curl -I http://$TARGET > "$ENUM_DIR/web/headers.txt"
