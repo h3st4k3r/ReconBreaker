@@ -14,6 +14,7 @@ Tool for performing pentesting, CTFs, eJPT, and OSCP prep in an automated way (i
 - Context-aware logic (SMART mode)
 - Includes user fuzzing, CVE matching, nuclei, searchsploit, etc.
 - Modular & hackable Bash code
+- NEW: Exploit Launch Helper for fast post-recon actions
 
 ---
 
@@ -35,6 +36,8 @@ You’ll be prompted to enter a target (IP or domain), then shown a menu:
 6. Run ALL Phases
 --------------------------
 7. Smart Auto Mode (recommended)
+--------------------------
+8. Exploit Launch Helper (suggestions)
 --------------------------
 0. Exit
 ```
